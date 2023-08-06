@@ -1,6 +1,8 @@
 # Webpack output
 webpack
 
+.DS_STORE
+
 # Logs
 logs
 *.log
