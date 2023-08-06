@@ -3,7 +3,6 @@ import { Config } from './deobfuscator/transformations/config';
 
 /**
  * Entry point for the website to deobfuscate a script.
- * Entry point for the website to deobfuscate a script.
  * @param source The script.
  * @param config The config.
  * @returns The deobfuscated code.
