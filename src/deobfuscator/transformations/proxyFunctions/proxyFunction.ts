@@ -5,7 +5,11 @@ import traverse, { NodePath } from '@babel/traverse';
 
 export type ProxyFunctionExpression = t.Function & {
     params: t.Identifier[];
-    body: t.BlockStatement & { body: { [0]: t.ReturnStatement & { argument: t.Expression | undefined } } };
+    body:
+        | (t.BlockStatement & {
+              body: { [0]: t.ReturnStatement & { argument: t.Expression | undefined } };
+          })
+        | t.Expression;
 };
 
 /**
@@ -17,11 +21,15 @@ export const isProxyFunctionExpression = (node: t.Node): node is ProxyFunctionEx
     return (
         t.isFunction(node) &&
         node.params.every(p => t.isIdentifier(p)) &&
-        t.isBlockStatement(node.body) &&
-        node.body.body.length == 1 &&
-        t.isReturnStatement(node.body.body[0]) &&
-        (node.body.body[0].argument == undefined ||
-            (t.isExpression(node.body.body[0].argument) && isProxyValue(node.body.body[0].argument)))
+        ((t.isBlockStatement(node.body) &&
+            node.body.body.length == 1 &&
+            t.isReturnStatement(node.body.body[0]) &&
+            (node.body.body[0].argument == undefined ||
+                (t.isExpression(node.body.body[0].argument) &&
+                    isProxyValue(node.body.body[0].argument)))) ||
+            (t.isArrowFunctionExpression(node) &&
+                t.isExpression(node.body) &&
+                isProxyValue(node.body)))
     );
 };
 
@@ -66,7 +74,9 @@ export class ProxyFunction {
      * @returns The replacement expression.
      */
     public getReplacement(args: Argument[]): t.Expression {
-        const expression = this.expression.body.body[0].argument
+        const expression = t.isExpression(this.expression.body)
+            ? copyExpression(this.expression.body)
+            : this.expression.body.body[0].argument
             ? copyExpression(this.expression.body.body[0].argument)
             : t.identifier('undefined');
         this.replaceParameters(expression, args);
