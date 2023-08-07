@@ -1,4 +1,4 @@
-# Deobfuscator-io
+# Obfuscator.io Deobfuscator
 
 A deobfuscator for scripts obfuscated by Obfuscator.io
 
