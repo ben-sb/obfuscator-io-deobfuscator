@@ -72,7 +72,7 @@ export class ProxyObject {
             this.isLiteralMemberKey(parentPath.node) &&
             (!parentPath.parentPath ||
                 !parentPath.parentPath.isAssignmentExpression() ||
-                parentPath.parentPath.parentKey != 'left')
+                parentPath.parentKey != 'left')
         ) {
             const key = t.isIdentifier(parentPath.node.property)
                 ? parentPath.node.property.name
