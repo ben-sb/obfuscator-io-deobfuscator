@@ -7,7 +7,14 @@ export class ExpressionSimplifier extends Transformation {
     public static readonly properties: TransformationProperties = {
         key: 'expressionSimplification'
     };
-    private static readonly RESOLVABLE_UNARY_OPERATORS: Set<string> = new Set(['-', '+', '!', '~', 'typeof', 'void']);
+    private static readonly RESOLVABLE_UNARY_OPERATORS: Set<string> = new Set([
+        '-',
+        '+',
+        '!',
+        '~',
+        'typeof',
+        'void'
+    ]);
     private static readonly RESOLVABLE_BINARY_OPERATORS: Set<string> = new Set([
         '==',
         '!=',
@@ -85,7 +92,10 @@ export class ExpressionSimplifier extends Transformation {
 
         if (this.isResolvableExpression(argument)) {
             const argumentValue = this.getResolvableExpressionValue(argument);
-            const value = this.applyUnaryOperation(expression.operator as ResolvableUnaryOperator, argumentValue);
+            const value = this.applyUnaryOperation(
+                expression.operator as ResolvableUnaryOperator,
+                argumentValue
+            );
             return this.convertValueToExpression(value);
         } else {
             return undefined;
@@ -240,7 +250,9 @@ export class ExpressionSimplifier extends Transformation {
             case 'string':
                 return t.stringLiteral(value);
             case 'number':
-                return value >= 0 ? t.numericLiteral(value) : t.unaryExpression('-', t.numericLiteral(Math.abs(value)));
+                return value >= 0
+                    ? t.numericLiteral(value)
+                    : t.unaryExpression('-', t.numericLiteral(Math.abs(value)));
             case 'boolean':
                 return t.booleanLiteral(value);
             case 'bigint':

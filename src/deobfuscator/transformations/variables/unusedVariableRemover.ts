@@ -20,21 +20,33 @@ export class UnusedVariableRemover extends Transformation {
                 for (const binding of Object.values(path.scope.bindings)) {
                     if (
                         !binding.referenced &&
+                        binding.constantViolations.length == 0 &&
                         binding.path.key != 'handler' &&
                         !binding.path.isFunctionExpression() // don't remove named function expressions
                     ) {
                         // ensure we don't remove variables that are exposed globally
-                        if (t.isProgram(binding.scope.block) && (binding.kind == 'var' || binding.kind == 'hoisted')) {
+                        if (
+                            t.isProgram(binding.scope.block) &&
+                            (binding.kind == 'var' || binding.kind == 'hoisted')
+                        ) {
                             return;
                         }
 
                         const paths =
                             binding.path.parentKey == 'params'
                                 ? [...binding.referencePaths, ...binding.constantViolations]
-                                : [binding.path, ...binding.referencePaths, ...binding.constantViolations];
+                                : [
+                                      binding.path,
+                                      ...binding.referencePaths,
+                                      ...binding.constantViolations
+                                  ];
 
                         for (const path of paths) {
-                            if (path.key == 'consequent' || path.key == 'alternate' || path.key == 'body') {
+                            if (
+                                path.key == 'consequent' ||
+                                path.key == 'alternate' ||
+                                path.key == 'body'
+                            ) {
                                 path.replaceWith(t.blockStatement([]));
                             } else {
                                 // check if we are going to create an empty variable declaration (otherwise can sometimes trigger Babel build error)
