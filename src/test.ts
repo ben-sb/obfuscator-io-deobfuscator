@@ -6,7 +6,7 @@ import { Deobfuscator } from './deobfuscator/deobfuscator';
 (globalThis as any).parser = { parse, parseExpression };
 
 const source = fs.readFileSync('input/source.js').toString();
-const ast = parse(source);
+const ast = parse(source, { sourceType: 'unambiguous' });
 
 const deobfuscator = new Deobfuscator(ast);
 const output = deobfuscator.execute();

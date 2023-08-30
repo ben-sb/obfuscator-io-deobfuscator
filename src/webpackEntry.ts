@@ -9,7 +9,7 @@ import { Config } from './deobfuscator/transformations/config';
  */
 export function deobfuscate(source: string, config: Config): string {
     // parse function is added by external script in browser
-    const ast = (globalThis as any).parser.parse(source);
+    const ast = (globalThis as any).parser.parse(source, { sourceType: 'unambiguous' });
 
     const deobfuscator = new Deobfuscator(ast, config);
     const output = deobfuscator.execute();
