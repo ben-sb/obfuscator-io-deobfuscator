@@ -17,13 +17,20 @@ export class ObjectPacker extends Transformation {
 
         traverse(this.ast, {
             enter(path) {
-                const variable = findConstantVariable<EmptyObjectExpression>(path, isEmptyObjectExpression);
+                const variable = findConstantVariable<EmptyObjectExpression>(
+                    path,
+                    isEmptyObjectExpression
+                );
                 if (!variable) {
                     return;
                 }
 
                 const parentPath = path.getStatementParent();
-                if (!parentPath || parentPath.parentPath == undefined || typeof parentPath.key != 'number') {
+                if (
+                    !parentPath ||
+                    parentPath.parentPath == undefined ||
+                    typeof parentPath.key != 'number'
+                ) {
                     return;
                 }
 
@@ -33,17 +40,51 @@ export class ObjectPacker extends Transformation {
                     const node = statements[i];
                     if (
                         t.isExpressionStatement(node) &&
-                        t.isAssignmentExpression(node.expression) &&
-                        t.isMemberExpression(node.expression.left) &&
-                        t.isIdentifier(node.expression.left.object) &&
-                        node.expression.left.object.name == variable.name
+                        self.isPropertyAssignment(node.expression, variable.name)
                     ) {
-                        const key = node.expression.left.property;
-                        const isComputed = !t.isStringLiteral(key) && !t.isNumericLiteral(key) && !t.isIdentifier(key);
-                        const property = t.objectProperty(key, node.expression.right, isComputed);
-                        variable.expression.properties.push(property);
-                        self.setChanged();
-                        numRemoved++;
+                        // replace multiple properties assigned in same statement
+                        if (self.isPropertyAssignment(node.expression.right, variable.name)) {
+                            const properties = [node.expression.left];
+                            let right: t.Expression = node.expression.right;
+                            while (self.isPropertyAssignment(right, variable.name)) {
+                                properties.push(right.left);
+                                right = right.right;
+                            }
+
+                            // don't duplicate expressions with side effects
+                            if (!t.isLiteral(right)) {
+                                return;
+                            }
+
+                            for (const { property } of properties) {
+                                const isComputed =
+                                    !t.isStringLiteral(property) &&
+                                    !t.isNumericLiteral(property) &&
+                                    !t.isIdentifier(property);
+                                const objectProperty = t.objectProperty(
+                                    property,
+                                    right,
+                                    isComputed
+                                );
+                                variable.expression.properties.push(objectProperty);
+                                self.setChanged();
+                                numRemoved++;
+                            }
+                        } else {
+                            const key = node.expression.left.property;
+                            const isComputed =
+                                !t.isStringLiteral(key) &&
+                                !t.isNumericLiteral(key) &&
+                                !t.isIdentifier(key);
+                            const property = t.objectProperty(
+                                key,
+                                node.expression.right,
+                                isComputed
+                            );
+                            variable.expression.properties.push(property);
+                            self.setChanged();
+                            numRemoved++;
+                        }
                     } else {
                         break;
                     }
@@ -54,6 +95,24 @@ export class ObjectPacker extends Transformation {
         });
 
         return this.hasChanged();
+    }
+
+    /**
+     * Returns whether a node is setting a property on a given object.
+     * @param node The AST node.
+     * @param objectName The name of the object.
+     * @returns Whether.
+     */
+    private isPropertyAssignment(
+        node: t.Node,
+        objectName: string
+    ): node is t.AssignmentExpression & { left: t.MemberExpression } {
+        return (
+            t.isAssignmentExpression(node) &&
+            t.isMemberExpression(node.left) &&
+            t.isIdentifier(node.left.object) &&
+            node.left.object.name == objectName
+        );
     }
 }
 
