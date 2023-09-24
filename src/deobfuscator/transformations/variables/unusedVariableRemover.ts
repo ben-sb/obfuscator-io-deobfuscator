@@ -62,7 +62,9 @@ export class UnusedVariableRemover extends Transformation {
                                 }
                             }
 
-                            self.setChanged();
+                            if (paths.length > 0) {
+                                self.setChanged();
+                            }
                         }
                     }
                 }
