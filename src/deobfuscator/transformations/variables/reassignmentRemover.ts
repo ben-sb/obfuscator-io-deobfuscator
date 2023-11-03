@@ -27,6 +27,14 @@ export class ReassignmentRemover extends Transformation {
                     referencePath.replaceWith(t.identifier(variable.expression.name));
                     self.setChanged();
                 }
+
+                // remove any declarations of variable we are replacing
+                for (const declarationPath of variable.binding.constantViolations) {
+                    if (declarationPath != path) {
+                        declarationPath.remove();
+                    }
+                }
+                path.remove();
             }
         });
 
