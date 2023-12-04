@@ -29,12 +29,25 @@ export class ReassignmentRemover extends Transformation {
                 }
 
                 // remove any declarations of variable we are replacing
-                for (const declarationPath of variable.binding.constantViolations) {
+                for (const declarationPath of [
+                    ...variable.binding.constantViolations,
+                    variable.binding.path
+                ]) {
                     if (declarationPath != path) {
                         declarationPath.remove();
                     }
                 }
-                path.remove();
+
+                if (
+                    path.isStatement() ||
+                    path.isVariableDeclarator() ||
+                    (path.parentPath && path.parentPath.isStatement())
+                ) {
+                    path.remove();
+                } else {
+                    // might have side effects, replace with RHS instead
+                    path.replaceWith(variable.expression);
+                }
             }
         });
 
