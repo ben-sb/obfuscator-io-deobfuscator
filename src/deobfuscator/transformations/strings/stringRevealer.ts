@@ -226,7 +226,8 @@ export class StringRevealer extends Transformation {
                         self.setChanged();
                     }
                 } else if (self.isEscapedStringLiteral(path.node)) {
-                    delete path.node.extra;
+                    const extra = path.node.extra as Record<string, string>;
+                    extra.raw = `'${extra.rawValue.replace(/'/g, "\\'")}'`;
                     self.setChanged();
                 }
             }
