@@ -103,7 +103,7 @@ export class Deobfuscator {
             }
         }
 
-        return generate(this.ast).code;
+        return generate(this.ast, { jsescOption: { minimal: true }}).code;
     }
 
     /**
