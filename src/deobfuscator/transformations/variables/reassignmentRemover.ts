@@ -41,7 +41,13 @@ export class ReassignmentRemover extends Transformation {
                 if (
                     path.isStatement() ||
                     path.isVariableDeclarator() ||
-                    (path.parentPath && path.parentPath.isStatement())
+                    (path.parentPath &&
+                        (path.parentPath.isStatement() ||
+                            (path.parentPath.isSequenceExpression() &&
+                                path.node !=
+                                    path.parentPath.node.expressions[
+                                        path.parentPath.node.expressions.length - 1
+                                    ])))
                 ) {
                     path.remove();
                 } else {
