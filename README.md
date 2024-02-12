@@ -2,6 +2,8 @@
 
 A deobfuscator for scripts obfuscated by Obfuscator.io
 
+Install via `npm install -g obfuscator-io-deobfuscator`
+
 Online version at [obf-io.deobfuscate.io](https://obf-io.deobfuscate.io)
 
 ## Features
