@@ -2,9 +2,17 @@
 
 A deobfuscator for scripts obfuscated by Obfuscator.io
 
+## Usage
+
+### Online
+
+An online version is available at [obf-io.deobfuscate.io](https://obf-io.deobfuscate.io)
+
+### CLI
+
 Install via `npm install -g obfuscator-io-deobfuscator`
 
-Online version at [obf-io.deobfuscate.io](https://obf-io.deobfuscate.io)
+Usage: `obfuscator-io-deobfuscator <input> -o [output]`
 
 ## Features
 
