@@ -251,7 +251,7 @@ export class StringRevealer extends Transformation {
                 node.body.body[0],
                 t.isIdentifier,
                 (node: t.Node) =>
-                    t.isArrayExpression(node) || // explicit string array
+                    (t.isArrayExpression(node) && node.elements.every(e => t.isStringLiteral(e))) || // explicit string array
                     (t.isCallExpression(node) && // creating string array by splitting a string
                         t.isMemberExpression(node.callee) &&
                         t.isStringLiteral(node.callee.object) &&
