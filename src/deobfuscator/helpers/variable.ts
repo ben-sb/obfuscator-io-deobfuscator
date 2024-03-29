@@ -106,7 +106,12 @@ export function findConstantVariable<T extends t.Node>(
             : undefined;
     }
     // essentially same as declarator but allows function declarations
-    else if (canBeFunction && path.isFunctionDeclaration() && t.isIdentifier(path.node.id) && isType(path.node)) {
+    else if (
+        canBeFunction &&
+        path.isFunctionDeclaration() &&
+        t.isIdentifier(path.node.id) &&
+        isType(path.node)
+    ) {
         const name = path.node.id.name;
         const binding = path.scope.getBinding(name);
         return binding && isConstantBinding(path, binding)
@@ -120,11 +125,7 @@ export function findConstantVariable<T extends t.Node>(
     ) {
         const name = path.node.left.name;
         const binding = path.scope.getBinding(name);
-        return binding &&
-            ((binding.path.isVariableDeclarator() && binding.path.node.init == undefined) ||
-                binding.path.parentKey == 'params') && // either variable declarator with no initialiser or parameter of function
-            binding.constantViolations.length == 1 &&
-            binding.constantViolations[0].node == path.node
+        return binding && isConstantAssignedBinding(path, binding)
             ? new ConstantAssignmentVariable(binding.path, path, name, binding, path.node.right)
             : undefined;
     }
@@ -138,7 +139,7 @@ export function findConstantVariable<T extends t.Node>(
  * for that.
  * @param path The path.
  * @param binding The binding.
- * @returns
+ * @returns Whether.
  */
 function isConstantBinding(path: NodePath, binding: Binding): boolean {
     return (
@@ -147,4 +148,36 @@ function isConstantBinding(path: NodePath, binding: Binding): boolean {
             path.node == binding.path.node &&
             path.node == binding.constantViolations[0].node)
     );
+}
+
+/**
+ * Returns whether a binding with a single assignment expression (separate
+ * to the declaration) can be treated as constant.
+ * @param path The path.
+ * @param binding The binding.
+ * @returns Whether.
+ */
+function isConstantAssignedBinding(
+    path: NodePath<t.AssignmentExpression>,
+    binding: Binding
+): boolean {
+    if (
+        ((binding.path.isVariableDeclarator() && binding.path.node.init == undefined) ||
+            binding.path.parentKey === 'params') && // either variable declarator with no initialiser or parameter of function
+        binding.constantViolations.length === 1 &&
+        binding.constantViolations[0].node === path.node
+    ) {
+        const declarationParent = binding.path.isVariableDeclarator()
+            ? binding.path.parent
+            : (binding.path.parent as t.Function).body;
+        const parent = path.findParent(
+            p => p.isStatement() || p.isConditionalExpression() || p.isLogicalExpression()
+        );
+        if (!parent || !parent.isStatement() || parent.parent !== declarationParent) {
+            return false;
+        }
+        return true;
+    } else {
+        return false;
+    }
 }
