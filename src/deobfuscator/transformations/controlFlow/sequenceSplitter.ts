@@ -126,7 +126,8 @@ export class SequenceSplitter extends Transformation {
                         (parent.isLogicalExpression() && outerPath.key == 'right') ||
                         (parent.isForStatement() &&
                             (outerPath.key == 'test' || outerPath.key == 'update')) ||
-                        (parent.isDoWhileStatement() && outerPath.key == 'test')
+                        (parent.isDoWhileStatement() && outerPath.key == 'test') ||
+                        (parent.isArrowFunctionExpression() && outerPath.key == 'body')
                     ) {
                         return;
                     }
