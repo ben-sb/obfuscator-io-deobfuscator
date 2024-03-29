@@ -24,11 +24,13 @@ export class ConstantPropgator extends Transformation {
                 if (!variable) {
                     return;
                 }
+                console.log(variable);
 
                 // avoid propagating params that are assigned to within branches
                 if (variable instanceof ConstantAssignmentVariable) {
                     if (variable.binding.path.parentKey == 'params') {
-                        const functionParent = variable.binding.path.getStatementParent() as NodePath<t.Function>;
+                        const functionParent =
+                            variable.binding.path.getStatementParent() as NodePath<t.Function>;
                         const parentPath = path.getStatementParent() as NodePath<t.Statement>;
                         if (parentPath.parent != functionParent.node.body) {
                             return;
@@ -41,6 +43,8 @@ export class ConstantPropgator extends Transformation {
                     referencePath.replaceWith(expression);
                     self.setChanged();
                 }
+
+                variable.remove();
             }
         });
 

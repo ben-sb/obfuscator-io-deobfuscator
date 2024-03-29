@@ -76,7 +76,16 @@ export class ConstantAssignmentVariable<T extends t.Node> extends ConstantVariab
      */
     public remove(): void {
         this.declaratorPath.remove();
-        this.assignmentPath.remove();
+
+        // only safe to remove an assignment if the parent doesn't rely on it
+        if (
+            this.assignmentPath.parentPath &&
+            this.assignmentPath.parentPath.isExpressionStatement()
+        ) {
+            this.assignmentPath.remove();
+        } else {
+            this.assignmentPath.replaceWith(this.expression);
+        }
     }
 }
 
@@ -125,6 +134,7 @@ export function findConstantVariable<T extends t.Node>(
     ) {
         const name = path.node.left.name;
         const binding = path.scope.getBinding(name);
+        console.log('Checking');
         return binding && isConstantAssignedBinding(path, binding)
             ? new ConstantAssignmentVariable(binding.path, path, name, binding, path.node.right)
             : undefined;
@@ -168,11 +178,14 @@ function isConstantAssignedBinding(
         binding.constantViolations[0].node === path.node
     ) {
         const declarationParent = binding.path.isVariableDeclarator()
-            ? binding.path.parent
+            ? (binding.path.getStatementParent() as NodePath<t.Statement>).parent
             : (binding.path.parent as t.Function).body;
         const parent = path.findParent(
             p => p.isStatement() || p.isConditionalExpression() || p.isLogicalExpression()
         );
+        console.log(parent!.type);
+        console.log(parent!.parent!.type);
+        console.log(declarationParent!.type);
         if (!parent || !parent.isStatement() || parent.parent !== declarationParent) {
             return false;
         }
