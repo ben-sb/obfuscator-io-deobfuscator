@@ -24,7 +24,6 @@ export class ConstantPropgator extends Transformation {
                 if (!variable) {
                     return;
                 }
-                console.log(variable);
 
                 // avoid propagating params that are assigned to within branches
                 if (variable instanceof ConstantAssignmentVariable) {

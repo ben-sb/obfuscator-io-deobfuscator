@@ -134,7 +134,6 @@ export function findConstantVariable<T extends t.Node>(
     ) {
         const name = path.node.left.name;
         const binding = path.scope.getBinding(name);
-        console.log('Checking');
         return binding && isConstantAssignedBinding(path, binding)
             ? new ConstantAssignmentVariable(binding.path, path, name, binding, path.node.right)
             : undefined;
@@ -183,9 +182,6 @@ function isConstantAssignedBinding(
         const parent = path.findParent(
             p => p.isStatement() || p.isConditionalExpression() || p.isLogicalExpression()
         );
-        console.log(parent!.type);
-        console.log(parent!.parent!.type);
-        console.log(declarationParent!.type);
         if (!parent || !parent.isStatement() || parent.parent !== declarationParent) {
             return false;
         }
