@@ -99,7 +99,16 @@ export class ProxyFunction {
 
         traverse(expression, {
             enter(path) {
-                if (t.isIdentifier(path.node) && paramMap.has(path.node.name)) {
+                if (
+                    t.isIdentifier(path.node) &&
+                    // check it is a real identifier
+                    !(
+                        path.parentPath &&
+                        path.parentPath.isMemberExpression() &&
+                        path.key == 'property'
+                    ) &&
+                    paramMap.has(path.node.name)
+                ) {
                     const replacement = paramMap.get(path.node.name) as t.Expression;
                     pathsToReplace.push([path, replacement]);
                 }
