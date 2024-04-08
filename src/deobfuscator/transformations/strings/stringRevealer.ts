@@ -67,6 +67,7 @@ export class StringRevealer extends Transformation {
                         if (referencePath.parentKey == 'callee') {
                             const functionParent = referencePath.getFunctionParent();
                             if (!functionParent) {
+                                log('Unknown reference to string array function');
                                 return;
                             }
 
@@ -112,10 +113,12 @@ export class StringRevealer extends Transformation {
                                         functionParent as NodePath<t.FunctionDeclaration>
                                     );
                                 } else {
-                                    return; // unknown string array wrapper type
+                                    log('Unknown string array wrapper type');
+                                    return;
                                 }
                             } else {
-                                return; // unknown reference to string array function found
+                                log('Unknown reference to string array function');
+                                return;
                             }
                         } else if (referencePath.parentKey == 'arguments') {
                             const parentPath = referencePath.parentPath as NodePath;
@@ -123,15 +126,18 @@ export class StringRevealer extends Transformation {
                                 rotateCall =
                                     parentPath.parentPath as NodePath<t.ExpressionStatement>;
                             } else {
-                                return; // unknown reference to string array function found
+                                log('Unknown reference to string array function');
+                                return;
                             }
                         } else {
-                            return; // unknown reference to string array function found
+                            log('Unknown reference to string array function');
+                            return;
                         }
                     }
 
                     // ensure there is at least one wrapper function
                     if (wrapperFunctions.length == 0) {
+                        log('No string wrapper functions found');
                         return;
                     }
 
@@ -392,7 +398,6 @@ export class StringRevealer extends Transformation {
             t.isIdentifier(node.body.body[2].argument.callee) &&
             node.body.body[2].argument.arguments.length == 2 &&
             t.isIdentifier(node.body.body[2].argument.arguments[0]) &&
-            node.body.body[2].argument.arguments[0].name == 'arguments' &&
             t.isIdentifier(node.body.body[2].argument.arguments[1])
         );
     }
