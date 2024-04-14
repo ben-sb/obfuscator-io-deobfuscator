@@ -23,6 +23,20 @@ export class ReassignmentRemover extends Transformation {
                     return;
                 }
 
+                // check that the variable we would replace with isn't reassigned multiple times
+                const assignedBinding = path.scope.getBinding(variable.expression.name);
+                if (
+                    assignedBinding &&
+                    !assignedBinding.constant &&
+                    !(
+                        assignedBinding.constantViolations.length == 1 &&
+                        assignedBinding.path.isVariableDeclarator() &&
+                        assignedBinding.path.node.init == undefined
+                    )
+                ) {
+                    return;
+                }
+
                 for (const referencePath of variable.binding.referencePaths) {
                     referencePath.replaceWith(t.identifier(variable.expression.name));
                     self.setChanged();
