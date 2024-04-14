@@ -1,5 +1,5 @@
 import * as t from '@babel/types';
-import traverse from '@babel/traverse';
+import traverse, { NodePath } from '@babel/traverse';
 import { LogFunction, Transformation, TransformationProperties } from '../transformation';
 
 export class PropertySimplifier extends Transformation {
@@ -26,7 +26,9 @@ export class PropertySimplifier extends Transformation {
                     self.setChanged();
                 }
             },
-            ObjectProperty(path) {
+            ['ObjectProperty|ObjectMethod' as any](
+                path: NodePath<t.ObjectProperty | t.ObjectMethod>
+            ) {
                 if (
                     path.node.computed &&
                     t.isStringLiteral(path.node.key) &&
