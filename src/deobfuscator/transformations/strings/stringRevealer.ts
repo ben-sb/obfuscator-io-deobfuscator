@@ -33,20 +33,30 @@ export class StringRevealer extends Transformation {
 
         traverse(this.ast, {
             enter(path) {
-                if (self.isStringArrayFunction(path.node)) {
+                if (
+                    self.isDirectStringArrayDeclarator(path.node) ||
+                    self.isStringArrayFunction(path.node)
+                ) {
+                    const isDirectArray = t.isVariableDeclarator(path.node);
                     let stringArray: string[];
-                    if (t.isVariableDeclaration(path.node.body.body[0])) {
-                        const arrayExpression = path.node.body.body[0].declarations[0]
-                            .init as t.ArrayExpression;
-                        stringArray = arrayExpression.elements.map(
+                    if (t.isFunction(path.node)) {
+                        if (t.isVariableDeclaration(path.node.body.body[0])) {
+                            const arrayExpression = path.node.body.body[0].declarations[0]
+                                .init as t.ArrayExpression;
+                            stringArray = arrayExpression.elements.map(
+                                e => (e as t.StringLiteral).value
+                            );
+                        } else {
+                            const string = (path.node.body.body[0] as any).expression.right.callee
+                                .object.value;
+                            const separator = (path.node.body.body[0] as any).expression.right
+                                .arguments[0].value;
+                            stringArray = string.split(separator);
+                        }
+                    } else {
+                        stringArray = path.node.init.elements.map(
                             e => (e as t.StringLiteral).value
                         );
-                    } else {
-                        const string = (path.node.body.body[0] as any).expression.right.callee
-                            .object.value;
-                        const separator = (path.node.body.body[0] as any).expression.right
-                            .arguments[0].value;
-                        stringArray = string.split(separator);
                     }
 
                     const arrayName = path.node.id.name;
@@ -55,12 +65,12 @@ export class StringRevealer extends Transformation {
                         return;
                     }
 
-                    const wrapperFunctions: NodePath<t.FunctionDeclaration>[] = [];
+                    const wrapperFunctionSet: Set<NodePath<t.FunctionDeclaration>> = new Set();
                     const stringDecoders = [];
                     let rotateCall: NodePath<t.ExpressionStatement> | undefined;
                     for (const referencePath of binding.referencePaths) {
                         // ignore call to function from within
-                        if (referencePath.scope == path.scope) {
+                        if (!isDirectArray && referencePath.scope == path.scope) {
                             continue;
                         }
 
@@ -82,7 +92,7 @@ export class StringRevealer extends Transformation {
                                 const decoder = new BasicStringDecoder(stringArray, offset);
                                 stringDecoders.push(decoder);
 
-                                wrapperFunctions.push(
+                                wrapperFunctionSet.add(
                                     functionParent as NodePath<t.FunctionDeclaration>
                                 );
                             } else if (
@@ -109,7 +119,61 @@ export class StringRevealer extends Transformation {
                                         stringDecoders.push(decoder);
                                     }
 
-                                    wrapperFunctions.push(
+                                    wrapperFunctionSet.add(
+                                        functionParent as NodePath<t.FunctionDeclaration>
+                                    );
+                                } else {
+                                    log('Unknown string array wrapper type');
+                                    return;
+                                }
+                            } else {
+                                log('Unknown reference to string array function');
+                                return;
+                            }
+                        } else if (
+                            isDirectArray &&
+                            referencePath.key == 'object' &&
+                            referencePath.parentPath &&
+                            referencePath.parentPath.isMemberExpression()
+                        ) {
+                            const functionParent = referencePath.getFunctionParent();
+                            if (!functionParent) {
+                                log('Unknown reference to string array function');
+                                return;
+                            }
+
+                            if (
+                                self.isComplexDirectStringArrayWrapper(
+                                    functionParent.node,
+                                    arrayName
+                                )
+                            ) {
+                                const offsetStatement = (functionParent.node as any).body.body[0];
+                                const offsetExpression = (
+                                    t.isVariableDeclaration(offsetStatement)
+                                        ? offsetStatement.declarations[0].init
+                                        : (offsetStatement as any).expression.right
+                                ) as t.BinaryExpression & { right: t.NumericLiteral };
+                                const absoluteOffset = offsetExpression.right.value;
+                                const offset =
+                                    offsetExpression.operator == '+'
+                                        ? absoluteOffset
+                                        : -absoluteOffset;
+
+                                const src = generate(functionParent.node).code;
+                                if (BASE_64_WRAPPER_REGEX.test(src)) {
+                                    if (RC4_WRAPPER_REGEX.test(src)) {
+                                        const decoder = new Rc4StringDecoder(stringArray, offset);
+                                        stringDecoders.push(decoder);
+                                    } else {
+                                        const decoder = new Base64StringDecoder(
+                                            stringArray,
+                                            offset
+                                        );
+                                        stringDecoders.push(decoder);
+                                    }
+
+                                    wrapperFunctionSet.add(
                                         functionParent as NodePath<t.FunctionDeclaration>
                                     );
                                 } else {
@@ -136,11 +200,12 @@ export class StringRevealer extends Transformation {
                     }
 
                     // ensure there is at least one wrapper function
-                    if (wrapperFunctions.length == 0) {
+                    if (wrapperFunctionSet.size == 0) {
                         log('No string wrapper functions found');
                         return;
                     }
 
+                    const wrapperFunctions = Array.from(wrapperFunctionSet);
                     const wrapperFunctionNames = wrapperFunctions.map(w => w.node.id!.name);
                     const wrapperBindings = wrapperFunctions.map((w, i) =>
                         w.scope.getBinding(wrapperFunctionNames[i])
@@ -238,6 +303,24 @@ export class StringRevealer extends Transformation {
             }
         });
         return this.hasChanged();
+    }
+
+    /**
+     * Returns whether a node is directly declaring a string array.
+     * @param node The AST node.
+     * @returns Whether.
+     */
+    private isDirectStringArrayDeclarator(node: t.Node): node is t.VariableDeclarator & {
+        id: t.Identifier;
+        init: t.ArrayExpression & { elements: t.StringLiteral[] };
+    } {
+        return (
+            t.isVariableDeclarator(node) &&
+            t.isIdentifier(node.id) &&
+            node.init != undefined &&
+            t.isArrayExpression(node.init) &&
+            node.init.elements.every(e => t.isStringLiteral(e))
+        );
     }
 
     /**
@@ -403,6 +486,50 @@ export class StringRevealer extends Transformation {
     }
 
     /**
+     * Returns whether a node is either a base 64 or RC4 string array wrapper function,
+     * around a direct string array.
+     * @param node The AST node.
+     * @param stringArrayName The name of the string array.
+     * @returns Whether.
+     */
+    private isComplexDirectStringArrayWrapper(
+        node: t.Node,
+        stringArrayName: string
+    ): node is t.FunctionDeclaration {
+        let lastStatement: t.Statement;
+        return (
+            t.isFunctionDeclaration(node) &&
+            t.isBlockStatement(node.body) &&
+            node.body.body.length >= 6 &&
+            isDeclarationOrAssignmentStatement(
+                node.body.body[0],
+                t.isIdentifier,
+                (node: t.Node) =>
+                    t.isBinaryExpression(node) &&
+                    (node.operator == '-' || node.operator == '+') &&
+                    t.isIdentifier(node.left) &&
+                    t.isNumericLiteral(node.right)
+            ) &&
+            isDeclarationOrAssignmentStatement(
+                node.body.body[1],
+                t.isIdentifier,
+                (node: t.Node) =>
+                    t.isMemberExpression(node) &&
+                    t.isIdentifier(node.object) &&
+                    node.object.name == stringArrayName &&
+                    t.isIdentifier(node.property)
+            ) &&
+            t.isIfStatement(node.body.body[2]) &&
+            t.isVariableDeclaration(node.body.body[3]) &&
+            t.isIfStatement(node.body.body[node.body.body.length - 2]) &&
+            (lastStatement = node.body.body[node.body.body.length - 1]) &&
+            t.isReturnStatement(lastStatement) &&
+            !!lastStatement.argument &&
+            t.isIdentifier(lastStatement.argument)
+        );
+    }
+
+    /**
      * Returns whether a node is a call to rotate the string array.
      * @param node The AST node.
      * @param stringArrayName The name of the string array function.
@@ -448,7 +575,14 @@ export class StringRevealer extends Transformation {
                     ) &&
                     t.isWhileStatement(node.callee.body.body[1]) &&
                     t.isBooleanLiteral(node.callee.body.body[1].test) &&
-                    node.callee.body.body[1].test.value == true))
+                    node.callee.body.body[1].test.value == true) ||
+                (node.callee.body.body.length == 1 &&
+                    t.isWhileStatement(node.callee.body.body[0]) &&
+                    t.isBooleanLiteral(node.callee.body.body[0].test) &&
+                    node.callee.body.body[0].test.value == true &&
+                    t.isBlockStatement(node.callee.body.body[0].body) &&
+                    node.callee.body.body[0].body.body.length == 1 &&
+                    t.isTryStatement(node.callee.body.body[0].body.body[0])))
         );
     }
 
