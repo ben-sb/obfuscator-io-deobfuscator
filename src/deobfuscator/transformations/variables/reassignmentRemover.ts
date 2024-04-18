@@ -1,7 +1,7 @@
 import * as t from '@babel/types';
 import { LogFunction, Transformation, TransformationProperties } from '../transformation';
 import { findConstantVariable } from '../../helpers/variable';
-import traverse from '@babel/traverse';
+import traverse, { Binding } from '@babel/traverse';
 
 export class ReassignmentRemover extends Transformation {
     public static readonly properties: TransformationProperties = {
@@ -29,11 +29,28 @@ export class ReassignmentRemover extends Transformation {
                     assignedBinding &&
                     !assignedBinding.constant &&
                     !(
-                        assignedBinding.constantViolations.length == 1 &&
-                        assignedBinding.path.isVariableDeclarator() &&
-                        assignedBinding.path.node.init == undefined
+                        (assignedBinding.constantViolations.length == 1 &&
+                            assignedBinding.path.isVariableDeclarator() &&
+                            assignedBinding.path.node.init == undefined) ||
+                        self.isExcludedConstantViolation(assignedBinding)
                     )
                 ) {
+                    if (
+                        assignedBinding.constantViolations.length == 1 &&
+                        assignedBinding.path.isFunctionDeclaration()
+                    ) {
+                        const functionParent =
+                            assignedBinding.constantViolations[1].getFunctionParent();
+                        if (functionParent && functionParent.node == assignedBinding.path.node) {
+                        }
+                    }
+                    // console.log(generate(path.node).code);
+                    // console.log(assignedBinding.constant);
+                    // console.log(
+                    //     assignedBinding.constantViolations.map(
+                    //         p => generate(p.parentPath!.node).code
+                    //     )
+                    // );
                     return;
                 }
 
@@ -72,5 +89,23 @@ export class ReassignmentRemover extends Transformation {
         });
 
         return this.hasChanged();
+    }
+
+    /**
+     * Checks whether a binding has a constant violation that reassigns a function from
+     * within (i.e. string decoder function), and thus should be treated as constant.
+     * @param assignedBinding The binding.
+     * @returns Whether.
+     */
+    private isExcludedConstantViolation(assignedBinding: Binding) {
+        if (
+            assignedBinding.constantViolations.length == 1 &&
+            assignedBinding.path.isFunctionDeclaration()
+        ) {
+            const functionParent = assignedBinding.constantViolations[0].getFunctionParent();
+            return functionParent && functionParent.node == assignedBinding.path.node;
+        } else {
+            return false;
+        }
     }
 }
