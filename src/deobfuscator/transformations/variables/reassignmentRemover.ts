@@ -35,22 +35,6 @@ export class ReassignmentRemover extends Transformation {
                         self.isExcludedConstantViolation(assignedBinding)
                     )
                 ) {
-                    if (
-                        assignedBinding.constantViolations.length == 1 &&
-                        assignedBinding.path.isFunctionDeclaration()
-                    ) {
-                        const functionParent =
-                            assignedBinding.constantViolations[1].getFunctionParent();
-                        if (functionParent && functionParent.node == assignedBinding.path.node) {
-                        }
-                    }
-                    // console.log(generate(path.node).code);
-                    // console.log(assignedBinding.constant);
-                    // console.log(
-                    //     assignedBinding.constantViolations.map(
-                    //         p => generate(p.parentPath!.node).code
-                    //     )
-                    // );
                     return;
                 }
 
