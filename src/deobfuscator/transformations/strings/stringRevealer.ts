@@ -319,6 +319,7 @@ export class StringRevealer extends Transformation {
             t.isIdentifier(node.id) &&
             node.init != undefined &&
             t.isArrayExpression(node.init) &&
+            node.init.elements.length > 0 &&
             node.init.elements.every(e => t.isStringLiteral(e))
         );
     }

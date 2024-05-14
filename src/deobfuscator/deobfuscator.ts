@@ -77,7 +77,7 @@ export class Deobfuscator {
                         console.log.bind(console, `[${transformation.constructor.name}]:`)
                     );
                 } catch (err) {
-                    console.log(`Error: ${err}`);
+                    console.error(err);
                 }
 
                 if (modified) {
@@ -103,7 +103,7 @@ export class Deobfuscator {
             }
         }
 
-        return generate(this.ast, { jsescOption: { minimal: true }}).code;
+        return generate(this.ast, { jsescOption: { minimal: true } }).code;
     }
 
     /**

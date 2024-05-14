@@ -45,7 +45,7 @@ const isProxyValue = (node: t.Node): boolean => {
     let isValid = true;
 
     traverse(node, {
-        ['SequenceExpression|BlockStatement|Function'](path) {
+        ['SequenceExpression|BlockStatement|Function|AssignmentExpression'](path) {
             isValid = false;
             path.stop();
         },
