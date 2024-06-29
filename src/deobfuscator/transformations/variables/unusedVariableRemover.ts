@@ -42,6 +42,17 @@ export class UnusedVariableRemover extends Transformation {
                                   ];
 
                         for (const path of paths) {
+                            // skip any patterns declaring other variables
+                            if (
+                                path.isVariableDeclarator() &&
+                                ((t.isArrayPattern(path.node.id) &&
+                                    path.node.id.elements.length > 1) ||
+                                    (t.isObjectPattern(path.node.id) &&
+                                        path.node.id.properties.length > 1))
+                            ) {
+                                continue;
+                            }
+
                             if (
                                 path.key == 'consequent' ||
                                 path.key == 'alternate' ||
