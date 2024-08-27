@@ -15,8 +15,6 @@ program
     .option('-o, --output [output_path]', 'output file path', 'deobfuscated.js')
     .option('-s, --silent', 'emit nothing to stdout')
     .action((input, options) => {
-        (globalThis as any).parser = { parse, parseExpression };
-
         const source = fs.readFileSync(input).toString();
         const ast = parse(source, { sourceType: 'unambiguous' });
 

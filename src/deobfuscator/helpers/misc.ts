@@ -1,5 +1,6 @@
 import generate from '@babel/generator';
 import * as t from '@babel/types';
+import {parseExpression} from '@babel/parser';
 
 /**
  * Copies an expression.
@@ -7,8 +8,6 @@ import * as t from '@babel/types';
  * @returns The copy.
  */
 export const copyExpression = (expression: t.Expression): t.Expression => {
-    const parseExpression: (code: string) => t.Expression = (globalThis as any).parser
-        .parseExpression;
     return parseExpression(generate(expression).code);
 };
 
