@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { parse, parseExpression } from '@babel/parser';
+import { parse } from '@babel/parser';
 import { program } from 'commander';
 import fs from 'fs';
 import { Deobfuscator } from './deobfuscator/deobfuscator';
