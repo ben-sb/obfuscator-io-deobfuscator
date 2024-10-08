@@ -20,7 +20,7 @@ export class ConstantPropgator extends Transformation {
         traverse(this.ast, {
             enter(path) {
                 // note that in general this is unsafe, should perform data flow analysis to handle params that are constants regardless of their runtime value
-                const variable = findConstantVariable<t.Literal>(path, t.isLiteral);
+                const variable = findConstantVariable<Literal>(path, isLiteral);
                 if (!variable) {
                     return;
                 }
@@ -50,3 +50,18 @@ export class ConstantPropgator extends Transformation {
         return this.hasChanged();
     }
 }
+
+/**
+ * Type for literals which can be safely propagated.
+ * Excludes regular expressions due to https://github.com/ben-sb/obfuscator-io-deobfuscator/issues/38
+ */
+type Literal = Exclude<t.Literal, t.RegExpLiteral>;
+
+/**
+ * Returns whether a node is a literal that can be safely propagated.
+ * @param node The node.
+ * @returns Whether.
+ */
+const isLiteral = (node: t.Node): node is Literal => {
+    return t.isLiteral(node) && !t.isRegExpLiteral(node);
+};
