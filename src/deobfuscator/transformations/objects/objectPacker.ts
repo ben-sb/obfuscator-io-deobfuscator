@@ -1,7 +1,7 @@
 import * as t from '@babel/types';
 import { findConstantVariable } from '../../helpers/variable';
 import { LogFunction, Transformation, TransformationProperties } from '../transformation';
-import traverse from '@babel/traverse';
+import traverse, { NodePath } from '@babel/traverse';
 
 export class ObjectPacker extends Transformation {
     public static readonly properties: TransformationProperties = {
@@ -25,18 +25,19 @@ export class ObjectPacker extends Transformation {
                     return;
                 }
 
-                const parentPath = path.getStatementParent();
+                const statementPath = path.getStatementParent();
                 if (
-                    !parentPath ||
-                    parentPath.parentPath == undefined ||
-                    typeof parentPath.key != 'number'
+                    !statementPath ||
+                    statementPath.parentPath == undefined ||
+                    typeof statementPath.key != 'number'
                 ) {
                     return;
                 }
 
-                const statements = (parentPath.parentPath.node as any)[parentPath.parentKey];
+                const statements = (statementPath.parentPath.node as any)[statementPath.parentKey];
+                const referencePathSet = new Set(variable.binding.referencePaths);
                 let numRemoved = 0;
-                for (let i = parentPath.key + 1; i < statements.length; i++) {
+                for (let i = statementPath.key + 1; i < statements.length; i++) {
                     const node = statements[i];
                     if (
                         t.isExpressionStatement(node) &&
@@ -53,7 +54,7 @@ export class ObjectPacker extends Transformation {
 
                             // don't duplicate expressions with side effects
                             if (!t.isLiteral(right)) {
-                                return;
+                                break;
                             }
 
                             for (const { property } of properties) {
@@ -76,6 +77,20 @@ export class ObjectPacker extends Transformation {
                                 !t.isStringLiteral(key) &&
                                 !t.isNumericLiteral(key) &&
                                 !t.isIdentifier(key);
+
+                            // if the value contains a reference to the object itself then can't inline it
+                            if (
+                                self.hasSelfReference(
+                                    node.expression.right,
+                                    statementPath,
+                                    i,
+                                    referencePathSet,
+                                    log
+                                )
+                            ) {
+                                break;
+                            }
+
                             const property = t.objectProperty(
                                 key,
                                 node.expression.right,
@@ -90,11 +105,54 @@ export class ObjectPacker extends Transformation {
                     }
                 }
 
-                statements.splice(parentPath.key + 1, numRemoved);
+                statements.splice(statementPath.key + 1, numRemoved);
             }
         });
 
         return this.hasChanged();
+    }
+
+    /**
+     * Searches a value for a reference to the object itself. Inlining this value
+     * as an object property would be unsafe: https://github.com/ben-sb/obfuscator-io-deobfuscator/issues/39
+     * @param value The value of the object property.
+     * @param statementPath The path of the statement assigning the property.
+     * @param arrayIndex The index of the assigning statement within the parent statement array.
+     * @param referencePathSet A set of paths referencing the object being packed.
+     * @returns Whether the value contains a reference to the object.
+     */
+    private hasSelfReference(
+        value: t.Node,
+        statementPath: NodePath,
+        arrayIndex: number,
+        referencePathSet: Set<NodePath>,
+        log: LogFunction
+    ): boolean {
+        try {
+            const valuePath = statementPath.parentPath!.get(
+                `${statementPath.parentKey}.${arrayIndex}`
+            ) as NodePath;
+            let hasSelfReference = false;
+
+            traverse(
+                value,
+                {
+                    Identifier(path) {
+                        if (referencePathSet.has(path)) {
+                            hasSelfReference = true;
+                        }
+                    }
+                },
+                valuePath.scope,
+                undefined,
+                valuePath
+            );
+
+            return hasSelfReference;
+        } catch (err) {
+            log(`Error looking for self reference when object packing: ${err}`);
+            return false;
+        }
     }
 
     /**
