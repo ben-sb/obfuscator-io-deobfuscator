@@ -15,6 +15,7 @@ import { PropertySimplifier } from './transformations/properties/propertySimplif
 import { ExpressionSimplifier } from './transformations/expressions/expressionSimplifier';
 import { ControlFlowRecoverer } from './transformations/controlFlow/controlFlowRecoverer';
 import { ObjectPacker } from './transformations/objects/objectPacker';
+import { AntiTamperRemover } from './transformations/antiTamper/antiTamperRemover';
 
 export class Deobfuscator {
     private readonly ast: t.File;
@@ -30,6 +31,7 @@ export class Deobfuscator {
         SequenceSplitter,
         ControlFlowRecoverer,
         PropertySimplifier,
+        AntiTamperRemover,
         ObjectSimplifier,
         StringRevealer
     ];
