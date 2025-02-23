@@ -11,6 +11,7 @@ export type TransformationKey =
     | 'sequenceSplitting'
     | 'controlFlowRecovery'
     | 'deadBranchRemoval'
+    | 'antiTamperRemoval'
     | 'unusedVariableRemoval'
     | 'propertySimplification';
 
@@ -49,6 +50,9 @@ export const defaultConfig: Config = {
         isEnabled: true
     },
     deadBranchRemoval: {
+        isEnabled: true
+    },
+    antiTamperRemoval: {
         isEnabled: true
     },
     unusedVariableRemoval: {
