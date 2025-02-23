@@ -5,7 +5,12 @@ const TerserPlugin = require('terser-webpack-plugin');
 module.exports = {
     entry: './src/webpackEntry.ts',
     resolve: {
-        extensions: ['.tsx', '.ts', '.js']
+        extensions: ['.tsx', '.ts', '.js'],
+        fallback: {
+            fs: false,
+            assert: require.resolve('assert/'),
+            path: require.resolve('path-browserify')
+        }
     },
     module: {
         rules: [
