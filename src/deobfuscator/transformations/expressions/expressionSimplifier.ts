@@ -223,8 +223,9 @@ export class ExpressionSimplifier extends Transformation {
             case 'StringLiteral':
             case 'BooleanLiteral':
             case 'DecimalLiteral':
-            case 'BigIntLiteral':
                 return expression.value;
+            case 'BigIntLiteral':
+                return BigInt(expression.value);
             case 'UnaryExpression':
                 return -this.getResolvableExpressionValue(
                     expression.argument as Exclude<t.Literal, t.RegExpLiteral | t.TemplateLiteral>
