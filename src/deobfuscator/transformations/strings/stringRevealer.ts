@@ -170,6 +170,44 @@ export class StringRevealer extends Transformation {
                                     log('Unknown string array wrapper type');
                                     return;
                                 }
+                            } else if (
+                                self.isComplexFunctionStringArrayWrapper(
+                                    functionParent.node,
+                                    arrayName
+                                )
+                            ) {
+                                const offsetStatement = (functionParent.node as any).body.body[0];
+                                const offsetExpression = (
+                                    t.isVariableDeclaration(offsetStatement)
+                                        ? offsetStatement.declarations[0].init
+                                        : (offsetStatement as any).expression.right
+                                ) as t.BinaryExpression & { right: t.NumericLiteral };
+                                const absoluteOffset = offsetExpression.right.value;
+                                const offset =
+                                    offsetExpression.operator == '+'
+                                        ? absoluteOffset
+                                        : -absoluteOffset;
+
+                                const src = generate(functionParent.node).code;
+                                if (BASE_64_WRAPPER_REGEX.test(src)) {
+                                    if (RC4_WRAPPER_REGEX.test(src)) {
+                                        const decoder = new Rc4StringDecoder(stringArray, offset);
+                                        stringDecoders.push(decoder);
+                                    } else {
+                                        const decoder = new Base64StringDecoder(
+                                            stringArray,
+                                            offset
+                                        );
+                                        stringDecoders.push(decoder);
+                                    }
+
+                                    wrapperFunctionSet.add(
+                                        functionParent as NodePath<t.FunctionDeclaration>
+                                    );
+                                } else {
+                                    log('Unknown string array wrapper type');
+                                    return;
+                                }
                             } else {
                                 log('Unknown reference to string array function, !isBasicStringArrayWrapper and !isComplexStringArrayWrapper');
                                 return;
@@ -661,6 +699,90 @@ export class StringRevealer extends Transformation {
             node.body.body[2].argument.arguments.length == 2 &&
             t.isIdentifier(node.body.body[2].argument.arguments[0]) &&
             t.isIdentifier(node.body.body[2].argument.arguments[1])
+        );
+    }
+
+    /**
+     * Returns whether a node is a base 64 or RC4 string array wrapper function
+     * with an inlined body, around a function-based string array.
+     * @param node The AST node.
+     * @param stringArrayName The name of the string array function.
+     * @returns Whether.
+     */
+    private isComplexFunctionStringArrayWrapper(
+        node: t.Node,
+        stringArrayName: string
+    ): node is t.FunctionDeclaration {
+        if (
+            !t.isFunctionDeclaration(node) ||
+            !t.isBlockStatement(node.body) ||
+            node.body.body.length < 7
+        ) {
+            return false;
+        }
+        const body = node.body.body;
+
+        if (
+            !isDeclarationOrAssignmentStatement(
+                body[0],
+                t.isIdentifier,
+                (node: t.Node) =>
+                    t.isBinaryExpression(node) &&
+                    (node.operator == '-' || node.operator == '+') &&
+                    t.isIdentifier(node.left) &&
+                    t.isNumericLiteral(node.right)
+            )
+        ) {
+            return false;
+        }
+
+        if (
+            !isDeclarationOrAssignmentStatement(
+                body[1],
+                t.isIdentifier,
+                (node: t.Node) =>
+                    t.isCallExpression(node) &&
+                    t.isIdentifier(node.callee) &&
+                    node.callee.name == stringArrayName &&
+                    node.arguments.length == 0
+            )
+        ) {
+            return false;
+        }
+        const arrayName = t.isVariableDeclaration(body[1])
+            ? (body[1].declarations[0].id as t.Identifier).name
+            : ((body[1] as t.ExpressionStatement).expression as t.AssignmentExpression).left &&
+              ((
+                  (body[1] as t.ExpressionStatement).expression as t.AssignmentExpression
+              ).left as t.Identifier).name;
+
+        if (
+            !isDeclarationOrAssignmentStatement(
+                body[2],
+                t.isIdentifier,
+                (node: t.Node) =>
+                    t.isMemberExpression(node) &&
+                    node.computed &&
+                    t.isIdentifier(node.object) &&
+                    node.object.name == arrayName
+            )
+        ) {
+            return false;
+        }
+
+        if (!t.isIfStatement(body[3])) {
+            return false;
+        }
+
+        if (!t.isIfStatement(body[body.length - 2])) {
+            return false;
+        }
+
+        const lastStatement = body[body.length - 1];
+        return (
+            t.isReturnStatement(lastStatement) &&
+            !!lastStatement.argument &&
+            t.isIdentifier(lastStatement.argument)
         );
     }
 
